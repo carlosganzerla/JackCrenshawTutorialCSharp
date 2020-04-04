@@ -7,36 +7,35 @@ namespace MyCompiler
 {
     class CradleInterpreter
     {
-        private static readonly char[] addOps = new[] { '+', '-' };
-        private static readonly char[] mulOps = new[] { '*', '/' };
-        private readonly int[] variables = new int[26];
+        private static readonly char[] addOperands = new[] { '+', '-' };
+        private static readonly char[] multOperands = new[] { '*', '/' };
+        private static readonly char[] whitespaces = new[] { ' ', '\t' };
+        private readonly Dictionary<string, int> variables = new Dictionary<string, int>();
         private char lookahead;
 
-        private int GetValue(char var)
+        private int GetValue(string var)
         {
-            return variables[char.ToUpper(var) - 'A'];
+            if (!variables.ContainsKey(var))
+            {
+                variables.Add(var, 0);
+            }
+            return variables[var];
         }
 
-        private void SetValue(char var, int value)
+        private void SetValue(string var, int value)
         {
-            variables[char.ToUpper(var) - 'A'] = value;
+            variables[var] = value;
         }
 
 
         public bool IsAddOp(char op)
         {
-            return addOps.Contains(op);
+            return addOperands.Contains(op);
         }
-
-        public bool IsWhiteSpace(char c)
-        {
-            return char.IsWhiteSpace(c) && c != '\r';
-        }
-
 
         public bool IsMulOp(char op)
         {
-            return mulOps.Contains(op);
+            return multOperands.Contains(op);
         }
 
         public void Init()
@@ -74,15 +73,20 @@ namespace MyCompiler
         }
 
 
-        public char GetName()
+        public string GetName()
         {
+            StringBuilder name = new StringBuilder();
             if (!char.IsLetter(lookahead))
             {
                 Expected("Name");
             }
-            char name = lookahead;
-            GetChar();
-            return name;
+            while (char.IsLetterOrDigit(lookahead))
+            {
+                name.Append(char.ToUpper(lookahead));
+                GetChar();
+            }
+            SkipWhite();
+            return name.ToString();
         }
 
         public int GetNumber()
@@ -97,6 +101,7 @@ namespace MyCompiler
                 value = 10 * value + Convert(lookahead);
                 GetChar();
             }
+            SkipWhite();
             return value;
         }
 
@@ -132,7 +137,7 @@ namespace MyCompiler
 
         public void SkipWhite()
         {
-            while (IsWhiteSpace(lookahead))
+            while (whitespaces.Contains(lookahead))
             {
                 GetChar();
             }
@@ -179,7 +184,7 @@ namespace MyCompiler
 
         public void Assignment()
         {
-            char name = GetName();
+            string name = GetName();
             Match('=');
             SetValue(name, Expression());
         }
@@ -195,13 +200,6 @@ namespace MyCompiler
                 }
             }
         }
-
-        public void Input()
-        {
-            Match('?');
-            SetValue(GetName(), GetNumber());
-        }
-
         public void Output()
         {
             Match('!');
@@ -212,9 +210,7 @@ namespace MyCompiler
         {
             do
             {
-                
-                if (lookahead == '?') Input();
-                else if (lookahead == '!') Output();
+                if (lookahead == '!') Output();
                 else Assignment();
                 NewLine();
             } while (lookahead != ';');
